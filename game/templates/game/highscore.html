@@ -1,0 +1,42 @@
+{% extends "game/base.html" %}
+{% block title %}Highscore – Ratespiel{% endblock %}
+
+{% block content %}
+<h1><span class="highlight">High</span>score</h1>
+<p class="subtitle">Die besten Ratekünstler — sortiert nach benötigten Versuchen.</p>
+
+<div class="card">
+  <div class="card-title">Top 20 · Gewonnene Spiele</div>
+
+  {% if eintraege %}
+  <table class="hs-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Spieler</th>
+        <th>Versuche</th>
+        <th>Max.</th>
+        <th>Datum</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in eintraege %}
+      <tr>
+        <td class="rank">{{ forloop.counter }}</td>
+        <td><strong>{{ e.playername }}</strong></td>
+        <td><span class="chip green">{{ e.benoetigt }}</span></td>
+        <td><span style="color:var(--text-dim);font-size:.8rem;">/ {{ e.versuche_gesamt }}</span></td>
+        <td style="color:var(--text-dim);font-size:.82rem;">{{ e.datum|date:"d.m.Y" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:var(--text-dim);text-align:center;padding:2rem 0;">
+    Noch keine gewonnenen Spiele. Los geht's! 🐯
+  </p>
+  {% endif %}
+</div>
+
+<a href="/" class="btn btn-primary">Neues Spiel</a>
+{% endblock %}

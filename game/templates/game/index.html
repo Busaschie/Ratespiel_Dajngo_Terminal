@@ -1,0 +1,113 @@
+{% extends "game/base.html" %}
+{% block title %}Neues Spiel – Ratespiel{% endblock %}
+
+{% block content %}
+<h1><span class="highlight">Rate</span>spiel</h1>
+<p class="subtitle">GameMaster konfiguriert — PlayerOne rät.</p>
+
+<!-- ── Schritt 1: Modus ── -->
+<div class="card">
+  <div class="card-title">Schritt 1 · GameMaster</div>
+  <h2>Geheimzahl</h2>
+
+  <div class="input-group">
+    <label>Modus wählen</label>
+    <div class="toggle-group">
+      <button class="toggle-btn active" data-modus="z">🎲 Zufallszahl</button>
+      <button class="toggle-btn" data-modus="e">✏️ Eigene Zahl</button>
+    </div>
+  </div>
+
+  <!-- Zufalls-Schwierigkeit -->
+  <div id="block-schwierigkeit" class="input-group">
+    <label>Schwierigkeitsgrad</label>
+    <div class="toggle-group">
+      {% for key, s in schwierigkeiten.items %}
+      <button class="toggle-btn schwier-btn {% if forloop.first %}active{% endif %}"
+              data-schwier="{{ key }}">
+        {{ s.label }}<br>
+        <small style="font-weight:400;font-size:.72rem;">0 – {{ s.max }}</small>
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Eigene Zahl (versteckt) -->
+  <div id="block-eigene" class="input-group" style="display:none;">
+    <label>Geheimzahl eingeben</label>
+    <input type="password" id="eigene-zahl" placeholder="Nur Ziffern …" inputmode="numeric">
+    <div id="eigene-fehler" class="alert alert-err" style="display:none;margin-top:.5rem;"></div>
+  </div>
+</div>
+
+<!-- ── Schritt 2: Versuche ── -->
+<div class="card">
+  <div class="card-title">Schritt 2 · Versuche</div>
+  <h2>Wieviele Versuche?</h2>
+  <div class="input-group" style="max-width:200px;">
+    <input type="number" id="versuchanzahl" value="7" min="1" max="99">
+  </div>
+</div>
+
+<!-- ── Start ── -->
+<button class="btn btn-primary btn-full" id="btn-start">
+  Weiter zu PlayerOne →
+</button>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+// Modus-Toggle
+let modus = 'z';
+document.querySelectorAll('[data-modus]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-modus]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    modus = btn.dataset.modus;
+    document.getElementById('block-schwierigkeit').style.display = modus === 'z' ? '' : 'none';
+    document.getElementById('block-eigene').style.display        = modus === 'e' ? '' : 'none';
+  });
+});
+
+// Schwierigkeits-Toggle
+let schwierigkeit = '{{ erste_schwierigkeit }}';
+document.querySelectorAll('.schwier-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.schwier-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    schwierigkeit = btn.dataset.schwier;
+  });
+});
+
+// Start
+document.getElementById('btn-start').addEventListener('click', async () => {
+  const versuchanzahl = parseInt(document.getElementById('versuchanzahl').value) || 7;
+  let eigene_zahl = null;
+
+  if (modus === 'e') {
+    eigene_zahl = document.getElementById('eigene-zahl').value.trim();
+    if (!/^\d+$/.test(eigene_zahl)) {
+      const el = document.getElementById('eigene-fehler');
+      el.textContent = 'Bitte nur Ziffern eingeben!';
+      el.style.display = '';
+      document.getElementById('eigene-zahl').classList.add('error');
+      return;
+    }
+  }
+
+  const res = await fetch('/setup/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify({ modus, schwierigkeit, eigene_zahl, versuchanzahl })
+  });
+  const data = await res.json();
+  if (data.ok) {
+    window.location.href = '/spielername/';
+  } else {
+    alert(data.fehler || 'Fehler beim Setup.');
+  }
+});
+</script>
+{% endblock %}

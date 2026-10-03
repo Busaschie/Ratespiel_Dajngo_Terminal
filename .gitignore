@@ -1,0 +1,70 @@
+# ==========================================
+# PyCharm & JetBrains IDEs
+# ==========================================
+.idea/
+*.iml
+*.iws
+.streamlit/secrets.toml
+# ==========================================
+# Python (Bytecode, Cache, Environments)
+# ==========================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual Environments (Virtuelle Umgebungen)
+.venv/
+.venv
+venv/
+ENV/
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+Back_und_Koch_Anleitung.odt
+setup_offline-big.bat
+setup_offline-big.bat
+
+# Distribution / Packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ==========================================
+# Streamlit & Frontend
+# ==========================================
+# Streamlit configuration & logs
+.streamlit/config.toml
+.streamlit/secrets.toml
+
+# Node/Frontend (falls du npm für dein HTML/JS nutzt)
+node_modules/
+npm-debug.log*
+
+# ==========================================
+# FastAPI & Umgebungsvariablen (Security)
+# ==========================================
+# Sensible Daten (Passwörter, API-Keys in .env-Dateien)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log

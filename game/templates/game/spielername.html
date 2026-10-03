@@ -1,0 +1,26 @@
+{% extends "game/base.html" %}
+{% block title %}Spielername – Ratespiel{% endblock %}
+
+{% block content %}
+<h1>PlayerOne <span class="highlight">🐯</span></h1>
+<p class="subtitle">Wähle deinen Spielernamen.</p>
+
+<div class="card">
+  <div class="card-title">Schritt 3 · PlayerOne</div>
+  <h2>Dein Name</h2>
+
+  {% if fehler %}
+  <div class="alert alert-err">{{ fehler }}</div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="input-group">
+      <label for="name">Spielername</label>
+      <input type="text" id="name" name="name" placeholder="z.B. Tiger42"
+             autofocus autocomplete="off">
+    </div>
+    <button type="submit" class="btn btn-primary btn-full">Spiel starten →</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,236 @@
+{% extends "game/base.html" %}
+{% block title %}{{ spiel.name }} spielt – Ratespiel{% endblock %}
+
+{% block content %}
+
+<!-- ── Spieler-Info ── -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+  <div>
+    <h1 style="margin-bottom:.1rem;">{{ spiel.name }}</h1>
+    <span class="chip">{{ spiel.versuchanzahl }} Versuche</span>
+  </div>
+  {% if gesamt > 0 %}
+  <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);gap:.5rem;text-align:center;">
+    <div class="stat-item">
+      <div class="stat-zahl" style="color:var(--accent3);">{{ gewonnen }}</div>
+      <div class="stat-label">Siege</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-zahl" style="color:var(--accent2);">{{ verloren }}</div>
+      <div class="stat-label">Niederlagen</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-zahl" style="color:var(--warn);">{{ abbrueche }}</div>
+      <div class="stat-label">Abbrüche</div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Spielfeld ── -->
+<div class="card">
+  <div class="spielfeld-header">
+    <div class="card-title" style="margin:0;">Versuch <span id="aktueller-versuch">1</span> / {{ spiel.versuchanzahl }}</div>
+    <button class="btn btn-ghost" id="btn-abbruch" style="padding:.35rem .9rem;font-size:.8rem;">Aufgeben</button>
+  </div>
+
+  <!-- Fortschrittsbalken -->
+  <div class="versuche-bar" id="versuch-bar">
+    {% for i in spiel.versuchanzahl|rjust:1 %}{% endfor %}
+  </div>
+
+  <!-- Tipp-Eingabe -->
+  <div class="tipp-row">
+    <input type="number" id="tipp-input" placeholder="Zahl eingeben …"
+           inputmode="numeric" autofocus>
+    <button class="btn btn-primary" id="btn-tipp">Raten</button>
+  </div>
+
+  <!-- Hinweis -->
+  <div class="hinweis-box" id="hinweis-box">
+    <div class="hinweis-richtung" id="hinweis-richtung"></div>
+    <div class="hinweis-detail" id="hinweis-detail"></div>
+  </div>
+
+  <!-- Vorschau -->
+  <div id="vorschau-wrap" style="display:none;">
+    <div class="vorschau-label">Bekannte Ziffern</div>
+    <div class="vorschau-str" id="vorschau-str"></div>
+  </div>
+</div>
+
+<!-- ── Getippt ── -->
+<div class="card" id="getippt-card" style="display:none;">
+  <div class="card-title">Getippt</div>
+  <div class="getippt-liste" id="getippt-liste"></div>
+</div>
+
+<!-- ── Ergebnis-Overlay ── -->
+<div class="ergebnis-overlay" id="ergebnis-overlay">
+  <div class="ergebnis-card">
+    <div class="ergebnis-icon" id="erg-icon"></div>
+    <div class="ergebnis-titel" id="erg-titel"></div>
+    <div class="ergebnis-sub" id="erg-sub"></div>
+    <div class="ergebnis-geheim" id="erg-geheim"></div>
+    <div class="ergebnis-actions">
+      <a href="/" class="btn btn-primary">Neues Spiel</a>
+      <a href="/highscore/" class="btn btn-ghost">Highscore</a>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CSRF          = '{{ csrf_token }}';
+const VERSUCHANZAHL = {{ spiel.versuchanzahl }};
+let wieviel         = 1;
+
+// ── Fortschrittsbalken aufbauen ──
+const bar = document.getElementById('versuch-bar');
+for (let i = 0; i < VERSUCHANZAHL; i++) {
+  const dot = document.createElement('div');
+  dot.className = 'versuch-dot' + (i === 0 ? ' active' : '');
+  dot.id = `dot-${i}`;
+  bar.appendChild(dot);
+}
+
+function updateBar(versuch) {
+  for (let i = 0; i < VERSUCHANZAHL; i++) {
+    const dot = document.getElementById(`dot-${i}`);
+    if (!dot) continue;
+    dot.className = 'versuch-dot';
+    if (i < versuch - 1)      dot.classList.add('used');
+    else if (i === versuch - 1) dot.classList.add('active');
+  }
+}
+
+// ── Tipp senden ──
+async function sendeTipp(tipp) {
+  const res = await fetch('/tipp/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify({ tipp })
+  });
+  return res.json();
+}
+
+function zeigeGetippt(liste) {
+  const card = document.getElementById('getippt-card');
+  const ul   = document.getElementById('getippt-liste');
+  card.style.display = '';
+  ul.innerHTML = liste.map(n =>
+    `<span class="chip">${n}</span>`
+  ).join('');
+}
+
+function zeigeHinweis(data) {
+  const box = document.getElementById('hinweis-box');
+  const richtung = document.getElementById('hinweis-richtung');
+  const detail   = document.getElementById('hinweis-detail');
+
+  box.classList.remove('hoch','tief','visible');
+
+  if (data.richtung === 'groß') {
+    richtung.textContent = '⬆ Die Zahl ist zu groß!';
+    box.classList.add('hoch');
+  } else {
+    richtung.textContent = '⬇ Die Zahl ist zu klein!';
+    box.classList.add('tief');
+  }
+
+  let details = [];
+  if (data.stellen_hinweis) details.push(data.stellen_hinweis);
+  if (data.treffer && data.treffer.length > 0) {
+    details.push('Richtige Stelle' + (data.treffer.length > 1 ? 'n' : '') + ': ' +
+      data.treffer.map(t => `Position ${t.stelle} = ${t.ziffer}`).join(', '));
+  }
+  detail.textContent = details.join(' · ') || '';
+  box.classList.add('visible', 'fade-in');
+
+  // Vorschau
+  if (data.vorschau_str) {
+    const wrap = document.getElementById('vorschau-wrap');
+    const str  = document.getElementById('vorschau-str');
+    wrap.style.display = '';
+    str.innerHTML = data.vorschau_str.split('').map(c =>
+      c === 'x' ? `<span class="unbekannt">x</span>` : c
+    ).join('');
+  }
+}
+
+function zeigeErgebnis(status, data) {
+  const overlay = document.getElementById('ergebnis-overlay');
+  const icon    = document.getElementById('erg-icon');
+  const titel   = document.getElementById('erg-titel');
+  const sub     = document.getElementById('erg-sub');
+  const geheim  = document.getElementById('erg-geheim');
+
+  geheim.textContent = data.geheimzahl;
+
+  if (status === 'gewonnen') {
+    icon.textContent  = '🎉';
+    titel.textContent = `Richtig, ${data.name || ''}!`;
+    sub.textContent   = `In ${data.versuche} Versuch${data.versuche === 1 ? '' : 'en'} erraten!`;
+    geheim.style.color = 'var(--accent3)';
+  } else if (status === 'verloren') {
+    icon.textContent  = '😔';
+    titel.textContent = 'Alle Versuche aufgebraucht!';
+    sub.textContent   = data.motivation || 'Beim nächsten Mal klappt es!';
+    geheim.style.color = 'var(--accent2)';
+  } else {
+    icon.textContent  = '🏳️';
+    titel.textContent = 'Aufgegeben';
+    sub.textContent   = 'Die Geheimzahl war …';
+    geheim.style.color = 'var(--warn)';
+  }
+
+  overlay.classList.add('visible');
+}
+
+// ── Event: Tipp abschicken ──
+async function handleTipp() {
+  const inp = document.getElementById('tipp-input');
+  const val = inp.value.trim();
+  if (!val) { inp.classList.add('shake'); setTimeout(() => inp.classList.remove('shake'), 300); return; }
+
+  inp.value = '';
+
+  const data = await sendeTipp(val);
+
+  if (data.fehler) {
+    const box = document.getElementById('hinweis-box');
+    box.classList.remove('hoch','tief');
+    box.classList.add('visible');
+    document.getElementById('hinweis-richtung').textContent = '⚠ ' + data.fehler;
+    document.getElementById('hinweis-detail').textContent = '';
+    return;
+  }
+
+  if (data.getippt) zeigeGetippt(data.getippt);
+
+  if (data.status === 'gewonnen' || data.status === 'verloren' || data.status === 'abgebrochen') {
+    zeigeErgebnis(data.status, data);
+    return;
+  }
+
+  // Status: weiter
+  wieviel = data.wieviel;
+  document.getElementById('aktueller-versuch').textContent = wieviel;
+  updateBar(wieviel);
+  zeigeHinweis(data);
+  inp.focus();
+}
+
+document.getElementById('btn-tipp').addEventListener('click', handleTipp);
+document.getElementById('tipp-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleTipp();
+});
+document.getElementById('btn-abbruch').addEventListener('click', async () => {
+  if (!confirm('Wirklich aufgeben?')) return;
+  const data = await sendeTipp('xxx');
+  zeigeErgebnis('abgebrochen', data);
+});
+</script>
+{% endblock %}
